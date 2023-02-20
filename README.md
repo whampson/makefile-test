@@ -92,7 +92,7 @@ When built, we will end up with the following directory tree:
 ./
 +-bin/
 | \-test/
-|   \-program.exe   <-- target binary
+|   \-program.exe   <-- target binary, linked against moduleA.lib and moduleB.lib
 +-build/
 +-obj/
 | +-moduleA/
