@@ -1,20 +1,13 @@
 #include <stdio.h>
-#include <drivers/kbd.h>
-#include <drivers/vga.h>
+#include <kernel.h>
 #include <mm.h>
-
 #include "init.h"
 
-int main(int argc, char **argv)
+void kmain()
 {
-    printf("main()\n");
+    printf("kmain()\n");
     init_func1();
     init_func2();
     init_func3();
-
     mm_init();
-    vga_init();
-    kbd_init();
-
-    return 0;
 }

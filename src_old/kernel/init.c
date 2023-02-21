@@ -1,5 +1,5 @@
-#include <stdio.h>
 #include "init.h"
+#include <stdio.h>
 
 void init_func1()
 {

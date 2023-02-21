@@ -1,4 +1,4 @@
-DIRS = drivers kernel mm
+DIRS = drivers kernel mm test
 
 TARGET = program
 TARGETLIBS = \
