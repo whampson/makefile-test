@@ -1,5 +1,5 @@
 # $(call source-to-object, source-file-list)
-source-to-object = $(subst .c,.o,$(filter %.c,$1))
+source-to-object = $(subst src/,$(OBJDIR)/,$(subst .c,.o,$(filter %.c,$1)))
 
 # $(subdirectory)
 # TODO: this needs to be reworked to omit .d files
@@ -27,6 +27,9 @@ programs  :=
 libraries :=
 sources   :=
 
+OBJDIR = obj
+LIBDIR = lib
+
 objects = $(call source-to-object,$(sources))
 depends = $(subst .o,.d,$(objects))
 
@@ -45,7 +48,7 @@ all:
 include $(addsuffix /Module.mk,$(modules))
 
 .SECONDARY: $(objects)
-.PHONY: all libs clean
+.PHONY: all libs clean debug-make
 
 all: libs $(programs)
 
@@ -54,10 +57,26 @@ libs: $(libraries)
 clean:
 	$(RM) $(objects) $(depends) $(programs) $(libraries)
 
-# append
-#    Makefile $(addsuffix /Module.mk,$(modules))
-# to detect changes made to Makefile and .mk files
-%.o: %.c
-	$(CC) $(CFLAGS) -c -MD -MF $(@:.o=.d) -o $@ $<
+define make-object
+  $2: $1
+	mkdir -p $(dir $2)
+	$(CC) $(CFLAGS) -c -MD -MF $(2:.o=.d) -o $2 $1
+endef
+
+
+$(foreach _src, $(sources), $(eval $(call make-object,$(_src),$(call source-to-object,$(_src)))))
+
+# # append
+# #    Makefile $(addsuffix /Module.mk,$(modules))
+# # to detect changes made to Makefile and .mk files
+# $(OBJDIR)/%.o: %.c
+# 	mkdir -p $(dir $@)
+# 	$(CC) $(CFLAGS) -c -MD -MF $(@:.o=.d) -o $@ $<
+
+debug-make:
+	@echo 'OBJDIR = $(OBJDIR)'
+	@echo 'sources = $(sources)'
+	@echo 'objects = $(objects)'
+	@echo 'depends = $(depends)'
 
 -include $(depends)
