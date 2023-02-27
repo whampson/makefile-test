@@ -1,3 +1,4 @@
-local_src := $(addprefix $(subdirectory)/,mm.c)
+TARGET  := libmm.a
+SOURCES := mm.c
 
-$(eval $(call make-library, $(subdirectory)/libmm.a,$(local_src)))
+$(eval $(call make-library))

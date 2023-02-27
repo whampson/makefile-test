@@ -1,7 +1,5 @@
-local_src := $(addprefix $(subdirectory)/,test.c)
+TARGET     := bin/test
+TARGETLIBS := lib/kernel/libkernel.a lib/mm/libmm.a
+SOURCES    := test.c
 
-# $(eval $(call make-library, $(subdirectory)/libtest.a,$(local_src)))
-libraries += src/kernel/libkernel.a src/mm/libmm.a
-
-$(eval $(call make-program, test,$(local_src)))
-
+$(eval $(call make-program))

@@ -1,82 +1,91 @@
+CC          := cc
+MKDIR       := mkdir -p
+MV          := mv -f
+RM          := rm -f
+SED         := sed
+
+INCLUDES    := src/inc
+MODULES     := \
+	src/kernel \
+	src/mm \
+	src/test \
+	src/test2 \
+
+ALL_SOURCES :=
+BIN_TARGETS :=
+LIB_TARGETS :=
+
+BINROOT     := bin/
+OBJROOT     := obj/
+LIBROOT     := lib/
+SRCROOT     := src/
+
+MODMAKE     := Module.mk
+
+DEPENDS = $(subst .o,.d,$(OBJECTS))
+
 # $(call source-to-object, source-file-list)
-source-to-object = $(subst src/,$(OBJDIR)/,$(subst .c,.o,$(filter %.c,$1)))
+source-to-object = $(subst $(SRCROOT),$(OBJROOT),$(subst .c,.o,$(filter %.c,$1)))
 
-# $(subdirectory)
+# $(MODDIR)
 # TODO: this needs to be reworked to omit .d files
-subdirectory = $(patsubst %/Module.mk,%,\
-	$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST)))
+MODDIR = $(patsubst %/$(MODMAKE),%,$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST)))
+OBJDIR = $(subst $(SRCROOT),$(OBJROOT),$(MODDIR))
+LIBDIR = $(subst $(SRCROOT),$(LIBROOT),$(MODDIR))
 
-# $(call make-library, library-name, source-file-list)
-define make-library
-  libraries += $1
-  sources   += $2
-  $1: $(call source-to-object,$2)
-	$(AR) rcs $$@ $$^
-endef
+CFLAGS += $(addprefix -I,$(INCLUDES))
 
 # $(call make-program, program-name, source-file-list)
 define make-program
-  programs  += $1
-  sources   += $2
-  $1: $(call source-to-object,$2) $(libraries)
+  BIN_TARGETS += $(TARGET)
+  ALL_SOURCES += $(addprefix $(MODDIR)/,$(SOURCES))
+  $(TARGET): $(call source-to-object,$(addprefix $(MODDIR)/,$(SOURCES))) $(TARGETLIBS)
 	$(CC) -o $$@ $$^
 endef
 
-modules   := src/kernel src/mm src/test
-programs  :=
-libraries :=
-sources   :=
+# $(call make-library)
+define make-library
+  LIB_TARGETS += $(addprefix $(LIBDIR)/,$(TARGET))
+  ALL_SOURCES += $(addprefix $(MODDIR)/,$(SOURCES))
+  $(addprefix $(LIBDIR)/,$(TARGET)): $(call source-to-object,$(addprefix $(MODDIR)/,$(SOURCES)))
+	$(AR) rcs $$@ $$^
+endef
 
-OBJDIR = obj
-LIBDIR = lib
-
-objects = $(call source-to-object,$(sources))
-depends = $(subst .o,.d,$(objects))
-
-includes := src/inc
-CFLAGS += $(addprefix -I,$(includes))
-
-vpath %.h $(includes)
-
-MV  := mv -f
-RM  := rm -f
-SED := sed
-CC := cc
+# $(call make-object, object-name, source-name)
+define make-object
+  OBJECTS += $1
+  $1: $2
+	$(CC) $(CFLAGS) -c -MD -MF $$(@:.o=.d) -o $$@ $$<
+endef
 
 all:
 
-include $(addsuffix /Module.mk,$(modules))
+vpath %.h $(INCLUDES)
+include $(addsuffix /$(MODMAKE),$(MODULES))
 
-.SECONDARY: $(objects)
-.PHONY: all libs clean debug-make
+.SECONDARY: $(OBJECTS)
+.PHONY: all dirs clean nuke debug-make
 
-all: libs $(programs)
+all: dirs $(LIB_TARGETS) $(BIN_TARGETS)
 
-libs: $(libraries)
+dirs:
+	$(MKDIR) $(dir $(OBJECTS) $(LIB_TARGETS) $(BIN_TARGETS))
 
 clean:
-	$(RM) $(objects) $(depends) $(programs) $(libraries)
+	$(RM) $(BIN_TARGETS) $(LIB_TARGETS) $(OBJECTS) $(DEPENDS)
 
-define make-object
-  $2: $1
-	mkdir -p $(dir $2)
-	$(CC) $(CFLAGS) -c -MD -MF $(2:.o=.d) -o $2 $1
-endef
-
-
-$(foreach _src, $(sources), $(eval $(call make-object,$(_src),$(call source-to-object,$(_src)))))
-
-# # append
-# #    Makefile $(addsuffix /Module.mk,$(modules))
-# # to detect changes made to Makefile and .mk files
-# $(OBJDIR)/%.o: %.c
-# 	mkdir -p $(dir $@)
-# 	$(CC) $(CFLAGS) -c -MD -MF $(@:.o=.d) -o $@ $<
+nuke:
+	$(RM) -r $(BINROOT) $(LIBROOT) $(OBJROOT)
 
 debug-make:
-	@echo 'OBJDIR = $(OBJDIR)'
-	@echo 'sources = $(sources)'
-	@echo 'objects = $(objects)'
-	@echo 'depends = $(depends)'
+	@echo 'ALL_SOURCES = $(ALL_SOURCES)'
+	@echo 'LIB_TARGETS = $(LIB_TARGETS)'
+	@echo 'BIN_TARGETS = $(BIN_TARGETS)'
+	@echo 'INCLUDES = $(INCLUDES)'
+	@echo 'OBJECTS = $(OBJECTS)'
+	@echo 'DEPENDS = $(DEPENDS)'
 
--include $(depends)
+# generate object file rules
+$(foreach _src, $(ALL_SOURCES), $(eval $(call make-object,$(call source-to-object,$(_src)),$(_src))))
+
+-include $(DEPENDS)
