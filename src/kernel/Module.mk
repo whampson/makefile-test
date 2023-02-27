@@ -1,6 +1,5 @@
-TARGET  := libkernel.a
 SOURCES := \
 	init.c \
 	kmain.c
 
-$(eval $(call make-library))
+$(eval $(call make-lib, libkernel.a, $(SOURCES)))

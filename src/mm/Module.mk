@@ -1,4 +1,3 @@
-TARGET  := libmm.a
 SOURCES := mm.c
 
-$(eval $(call make-library))
+$(eval $(call make-lib, libmm.a, $(SOURCES)))

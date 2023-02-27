@@ -4,56 +4,56 @@ MV          := mv -f
 RM          := rm -f
 SED         := sed
 
-INCLUDES    := src/inc
+# TODO: search tree for modules?
 MODULES     := \
+	src/drivers/kbd \
+	src/drivers/vga \
 	src/kernel \
 	src/mm \
-	src/test \
-	src/test2 \
+	src/test/kernel \
+	src/test/mm \
 
-ALL_SOURCES :=
-BIN_TARGETS :=
-LIB_TARGETS :=
+INCLUDES    := src/inc
 
 BINROOT     := bin/
 OBJROOT     := obj/
 LIBROOT     := lib/
 SRCROOT     := src/
 
-MODMAKE     := Module.mk
+MOD_MK      := Module.mk
 
-DEPENDS = $(subst .o,.d,$(OBJECTS))
+_SOURCES    :=
+_BINARIES   :=
+_LIBRARIES  :=
 
-# $(call source-to-object, source-file-list)
-source-to-object = $(subst $(SRCROOT),$(OBJROOT),$(subst .c,.o,$(filter %.c,$1)))
+DEPENDS      = $(subst .o,.d,$(_OBJECTS))
+SRC_DIR      = $(patsubst %/$(MOD_MK),%,$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST)))
+BIN_DIR      = $(subst $(SRCROOT),$(BINROOT),$(SRC_DIR))
+LIB_DIR      = $(subst $(SRCROOT),$(LIBROOT),$(SRC_DIR))
+OBJ_DIR      = $(subst $(SRCROOT),$(OBJROOT),$(SRC_DIR))
 
-# $(MODDIR)
-# TODO: this needs to be reworked to omit .d files
-MODDIR = $(patsubst %/$(MODMAKE),%,$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST)))
-OBJDIR = $(subst $(SRCROOT),$(OBJROOT),$(MODDIR))
-LIBDIR = $(subst $(SRCROOT),$(LIBROOT),$(MODDIR))
 
 CFLAGS += $(addprefix -I,$(INCLUDES))
 
-# $(call make-program, program-name, source-file-list)
-define make-program
-  BIN_TARGETS += $(TARGET)
-  ALL_SOURCES += $(addprefix $(MODDIR)/,$(SOURCES))
-  $(TARGET): $(call source-to-object,$(addprefix $(MODDIR)/,$(SOURCES))) $(TARGETLIBS)
+# $(call get-obj-name, source-list)
+get-obj-name = $(subst $(SRCROOT),$(OBJROOT),$(subst .c,.o,$(filter %.c,$1)))
+
+define make-exe	# exe-path, source-list, [link-libs]
+  _BINARIES += $1
+  _SOURCES += $(addprefix $(SRC_DIR)/,$2)
+  $1: $(call get-obj-name,$(addprefix $(SRC_DIR)/,$2)) $3
 	$(CC) -o $$@ $$^
 endef
 
-# $(call make-library)
-define make-library
-  LIB_TARGETS += $(addprefix $(LIBDIR)/,$(TARGET))
-  ALL_SOURCES += $(addprefix $(MODDIR)/,$(SOURCES))
-  $(addprefix $(LIBDIR)/,$(TARGET)): $(call source-to-object,$(addprefix $(MODDIR)/,$(SOURCES)))
+define make-lib # lib-name, source-list
+  _LIBRARIES += $(addprefix $(LIB_DIR)/,$1)
+  _SOURCES += $(addprefix $(SRC_DIR)/,$2)
+  $(addprefix $(LIB_DIR)/,$1): $(call get-obj-name,$(addprefix $(SRC_DIR)/,$2))
 	$(AR) rcs $$@ $$^
 endef
 
-# $(call make-object, object-name, source-name)
-define make-object
-  OBJECTS += $1
+define make-obj # obj-name, source-list
+  _OBJECTS += $1
   $1: $2
 	$(CC) $(CFLAGS) -c -MD -MF $$(@:.o=.d) -o $$@ $$<
 endef
@@ -61,31 +61,31 @@ endef
 all:
 
 vpath %.h $(INCLUDES)
-include $(addsuffix /$(MODMAKE),$(MODULES))
+include $(addsuffix /$(MOD_MK),$(MODULES))
 
-.SECONDARY: $(OBJECTS)
+.SECONDARY: $(_OBJECTS)
 .PHONY: all dirs clean nuke debug-make
 
-all: dirs $(LIB_TARGETS) $(BIN_TARGETS)
+all: dirs $(_LIBRARIES) $(_BINARIES)
 
 dirs:
-	$(MKDIR) $(dir $(OBJECTS) $(LIB_TARGETS) $(BIN_TARGETS))
+	$(MKDIR) $(dir $(_OBJECTS) $(_LIBRARIES) $(_BINARIES))
 
 clean:
-	$(RM) $(BIN_TARGETS) $(LIB_TARGETS) $(OBJECTS) $(DEPENDS)
+	$(RM) $(_BINARIES) $(_LIBRARIES) $(_OBJECTS) $(DEPENDS)
 
 nuke:
 	$(RM) -r $(BINROOT) $(LIBROOT) $(OBJROOT)
 
 debug-make:
-	@echo 'ALL_SOURCES = $(ALL_SOURCES)'
-	@echo 'LIB_TARGETS = $(LIB_TARGETS)'
-	@echo 'BIN_TARGETS = $(BIN_TARGETS)'
 	@echo 'INCLUDES = $(INCLUDES)'
-	@echo 'OBJECTS = $(OBJECTS)'
+	@echo '_SOURCES = $(_SOURCES)'
+	@echo '_LIBRARIES = $(_LIBRARIES)'
+	@echo '_BINARIES = $(_BINARIES)'
+	@echo '_OBJECTS = $(_OBJECTS)'
 	@echo 'DEPENDS = $(DEPENDS)'
 
 # generate object file rules
-$(foreach _src, $(ALL_SOURCES), $(eval $(call make-object,$(call source-to-object,$(_src)),$(_src))))
+$(foreach _src, $(_SOURCES), $(eval $(call make-obj, $(call get-obj-name, $(_src)), $(_src))))
 
 -include $(DEPENDS)
