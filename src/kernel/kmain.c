@@ -11,3 +11,11 @@ void kmain()
     init_func3();
     mm_init();
 }
+
+#ifdef MAIN
+int main(int argc, char **argv)
+{
+    kmain();
+    return 0;
+}
+#endif

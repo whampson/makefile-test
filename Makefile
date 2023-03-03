@@ -14,11 +14,12 @@ MODULES     := \
 	src/test/mm \
 
 INCLUDES    := src/inc
+LIBDIRS     := lib
 
-BINROOT     := bin/
-OBJROOT     := obj/
-LIBROOT     := lib/
-SRCROOT     := src/
+BINROOT     := bin
+OBJROOT     := obj
+LIBROOT     := lib
+SRCROOT     := src
 
 MOD_MK      := Module.mk
 
@@ -28,34 +29,34 @@ _LIBRARIES  :=
 
 DEPENDS      = $(subst .o,.d,$(_OBJECTS))
 SRC_DIR      = $(patsubst %/$(MOD_MK),%,$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST)))
-BIN_DIR      = $(subst $(SRCROOT),$(BINROOT),$(SRC_DIR))
-LIB_DIR      = $(subst $(SRCROOT),$(LIBROOT),$(SRC_DIR))
-OBJ_DIR      = $(subst $(SRCROOT),$(OBJROOT),$(SRC_DIR))
+BIN_DIR      = $(subst $(SRCROOT)/,$(BINROOT)/,$(SRC_DIR))
+LIB_DIR      = $(subst $(SRCROOT)/,$(LIBROOT)/,$(SRC_DIR))
+OBJ_DIR      = $(subst $(SRCROOT)/,$(OBJROOT)/,$(SRC_DIR))
 
-
-CFLAGS += $(addprefix -I,$(INCLUDES))
+CFLAGS      :=
+C_DEFINES   :=
 
 # $(call get-obj-name, source-list)
-get-obj-name = $(subst $(SRCROOT),$(OBJROOT),$(subst .c,.o,$(filter %.c,$1)))
+get-obj-name = $(subst $(SRCROOT)/,$(OBJROOT)/,$(subst .c,.o,$(filter %.c,$1)))
 
 define make-exe	# exe-path, source-list, [link-libs]
   _BINARIES += $1
   _SOURCES += $(addprefix $(SRC_DIR)/,$2)
-  $1: $(call get-obj-name,$(addprefix $(SRC_DIR)/,$2)) $3
-	$(CC) -o $$@ $$^
+  $1: $(call get-obj-name,$(addprefix $(SRC_DIR)/,$2))
+	$(CC) $(addprefix -L,$(LIBDIRS)) -o $$@ $$^ $(addprefix -l,$3)
 endef
 
 define make-lib # lib-name, source-list
-  _LIBRARIES += $(addprefix $(LIB_DIR)/,$1)
+  _LIBRARIES += $(addprefix $(LIBROOT)/,$1)
   _SOURCES += $(addprefix $(SRC_DIR)/,$2)
-  $(addprefix $(LIB_DIR)/,$1): $(call get-obj-name,$(addprefix $(SRC_DIR)/,$2))
+  $(addprefix $(LIBROOT)/,$1): $(call get-obj-name,$(addprefix $(SRC_DIR)/,$2))
 	$(AR) rcs $$@ $$^
 endef
 
 define make-obj # obj-name, source-list
   _OBJECTS += $1
   $1: $2
-	$(CC) $(CFLAGS) -c -MD -MF $$(@:.o=.d) -o $$@ $$<
+	$(CC) $(CFLAGS) $(addprefix -D,$(C_DEFINES)) $(addprefix -I,$(INCLUDES)) -c -MD -MF $$(@:.o=.d) -o $$@ $$<
 endef
 
 all:
@@ -68,6 +69,7 @@ include $(addsuffix /$(MOD_MK),$(MODULES))
 
 all: dirs $(_LIBRARIES) $(_BINARIES)
 
+# TODO: run uniq on dir list
 dirs:
 	$(MKDIR) $(dir $(_OBJECTS) $(_LIBRARIES) $(_BINARIES))
 

@@ -2,4 +2,12 @@ SOURCES := \
 	init.c \
 	kmain.c
 
-$(eval $(call make-lib, libkernel.a, $(SOURCES)))
+TARGET := libkernel.a
+
+
+$(eval $(call make-lib, $(TARGET), $(SOURCES)))
+
+# LINKLIBS := vga kbd mm kernel
+# C_DEFINES += MAIN
+
+# $(eval $(call make-exe, kernel, $(SOURCES), $(LINK)))

@@ -1,3 +1,4 @@
 SOURCES     := kbd.c
+TARGET      := drivers/libkbd.a
 
-$(eval $(call make-lib, libkbd.a, $(SOURCES), $(LINKLIBS)))
+$(eval $(call make-lib, $(TARGET), $(SOURCES)))

@@ -1,5 +1,5 @@
 EXE         := bin/kernel_test
-LINKLIBS    := lib/kernel/libkernel.a lib/mm/libmm.a
+LINKLIBS    := mm kernel
 SOURCES     := test.c
 
 $(eval $(call make-exe, $(EXE), $(SOURCES), $(LINKLIBS)))
