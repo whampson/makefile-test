@@ -1,11 +1,5 @@
-CC          := cc
-MKDIR       := mkdir -p
-MV          := mv -f
-RM          := rm -f
-SED         := sed
-
 # TODO: search tree for modules?
-MODULES     := \
+export MODULES := \
 	src/drivers/kbd \
 	src/drivers/vga \
 	src/kernel \
@@ -13,81 +7,88 @@ MODULES     := \
 	src/test/kernel \
 	src/test/mm \
 
-INCLUDES    := src/inc
-LIBDIRS     := lib
+export INCLUDES    := src/inc
+export CFLAGS      :=
+export DEFINES     :=
 
-BINROOT     := bin
-OBJROOT     := obj
-LIBROOT     := lib
-SRCROOT     := src
+export BIN_ROOT    := bin
+export OBJ_ROOT    := obj
+export LIB_ROOT    := lib
+export SRC_ROOT    := src
 
-MOD_MK      := Module.mk
+export CC          := cc
+export MKDIR       := mkdir -p
+export MV          := mv -f
+export RM          := rm -f
 
+# Current module directory (source directory).
+export MOD_DIR      = $(patsubst %/$(_MODFILE),%,$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST)))
+
+# =================================================================================================
+
+_MODFILE    := Module.mk
 _SOURCES    :=
 _BINARIES   :=
 _LIBRARIES  :=
-
-DEPENDS      = $(subst .o,.d,$(_OBJECTS))
-SRC_DIR      = $(patsubst %/$(MOD_MK),%,$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST)))
-BIN_DIR      = $(subst $(SRCROOT)/,$(BINROOT)/,$(SRC_DIR))
-LIB_DIR      = $(subst $(SRCROOT)/,$(LIBROOT)/,$(SRC_DIR))
-OBJ_DIR      = $(subst $(SRCROOT)/,$(OBJROOT)/,$(SRC_DIR))
-
-CFLAGS      :=
-C_DEFINES   :=
+_DEPENDS     = $(subst .o,.d,$(_OBJECTS))
 
 # $(call get-obj-name, source-list)
-get-obj-name = $(subst $(SRCROOT)/,$(OBJROOT)/,$(subst .c,.o,$(filter %.c,$1)))
+get-obj-name = $(subst $(SRC_ROOT)/,$(OBJ_ROOT)/,$(subst .c,.o,$(filter %.c,$1)))
 
 define make-exe	# exe-path, source-list, [link-libs]
   _BINARIES += $1
-  _SOURCES += $(addprefix $(SRC_DIR)/,$2)
-  $1: $(call get-obj-name,$(addprefix $(SRC_DIR)/,$2))
-	$(CC) $(addprefix -L,$(LIBDIRS)) -o $$@ $$^ $(addprefix -l,$3)
+  _SOURCES += $(addprefix $(MOD_DIR)/,$2)
+  $1: $(call get-obj-name,$(addprefix $(MOD_DIR)/,$2))
+	$(CC) -o $$@ $$^ $3
 endef
 
 define make-lib # lib-name, source-list
-  _LIBRARIES += $(addprefix $(LIBROOT)/,$1)
-  _SOURCES += $(addprefix $(SRC_DIR)/,$2)
-  $(addprefix $(LIBROOT)/,$1): $(call get-obj-name,$(addprefix $(SRC_DIR)/,$2))
+  _LIBRARIES += $(addprefix $(LIB_ROOT)/,$1)
+  _SOURCES += $(addprefix $(MOD_DIR)/,$2)
+  $(addprefix $(LIB_ROOT)/,$1): $(call get-obj-name,$(addprefix $(MOD_DIR)/,$2))
 	$(AR) rcs $$@ $$^
 endef
 
 define make-obj # obj-name, source-list
   _OBJECTS += $1
   $1: $2
-	$(CC) $(CFLAGS) $(addprefix -D,$(C_DEFINES)) $(addprefix -I,$(INCLUDES)) -c -MD -MF $$(@:.o=.d) -o $$@ $$<
+	$(CC) -o $$@ $(CFLAGS) $(addprefix -D,$(DEFINES)) $(addprefix -I,$(INCLUDES)) -c -MD -MF $$(@:.o=.d) $$<
 endef
+
+# uniq - https://stackoverflow.com/a/16151140
+uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
+
+# =================================================================================================
 
 all:
 
 vpath %.h $(INCLUDES)
-include $(addsuffix /$(MOD_MK),$(MODULES))
+include $(addsuffix /$(_MODFILE),$(MODULES))
 
 .SECONDARY: $(_OBJECTS)
 .PHONY: all dirs clean nuke debug-make
 
 all: dirs $(_LIBRARIES) $(_BINARIES)
 
-# TODO: run uniq on dir list
 dirs:
-	$(MKDIR) $(dir $(_OBJECTS) $(_LIBRARIES) $(_BINARIES))
+	$(MKDIR) $(call uniq, $(dir $(_OBJECTS) $(_LIBRARIES) $(_BINARIES)))
 
 clean:
-	$(RM) $(_BINARIES) $(_LIBRARIES) $(_OBJECTS) $(DEPENDS)
+	$(RM) $(_BINARIES) $(_LIBRARIES) $(_OBJECTS) $(_DEPENDS)
 
 nuke:
-	$(RM) -r $(BINROOT) $(LIBROOT) $(OBJROOT)
+	$(RM) -r $(BIN_ROOT) $(LIB_ROOT) $(OBJ_ROOT)
 
 debug-make:
+	@echo 'MODULES = $(MODULES)'
 	@echo 'INCLUDES = $(INCLUDES)'
 	@echo '_SOURCES = $(_SOURCES)'
 	@echo '_LIBRARIES = $(_LIBRARIES)'
 	@echo '_BINARIES = $(_BINARIES)'
 	@echo '_OBJECTS = $(_OBJECTS)'
-	@echo 'DEPENDS = $(DEPENDS)'
+	@echo '_DEPENDS = $(_DEPENDS)'
 
 # generate object file rules
 $(foreach _src, $(_SOURCES), $(eval $(call make-obj, $(call get-obj-name, $(_src)), $(_src))))
 
--include $(DEPENDS)
+-include $(_DEPENDS)

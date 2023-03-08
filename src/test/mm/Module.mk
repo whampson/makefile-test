@@ -1,5 +1,6 @@
-EXE         := bin/mm_test
-LINKLIBS    := mm
+TARGET      := bin/mm_test
 SOURCES     := test2.c
+LINKLIBS    := \
+	$(LIB_ROOT)/mm.lib \
 
-$(eval $(call make-exe, $(EXE), $(SOURCES), $(LINKLIBS)))
+$(eval $(call make-exe, $(TARGET), $(SOURCES), $(LINKLIBS)))
