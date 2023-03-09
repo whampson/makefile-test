@@ -1,4 +1,4 @@
-TARGET      := drivers/vga.lib
-SOURCES     := vga.c
+TARGET  := drivers/vga.lib
+SOURCES := vga.c
 
 $(eval $(call make-lib, $(TARGET), $(SOURCES)))
