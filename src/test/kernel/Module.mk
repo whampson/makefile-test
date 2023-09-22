@@ -1,5 +1,7 @@
-TARGET  := kernel_test         # relative to $(BINDIR) or bin/
-SOURCES := test.c              # relative to $(MODDIR) or src/test/mm/
-LIBS    := mm.lib kernel.lib   # relative to $(LIBDIR) or lib/
+TARGET  := kernel_test
+SOURCES := test.c
+LINKLIBS:= mm/mm.lib kernel/kernel.lib
+CFLAGS  := -Wpedantic
+LNKFLAGS:= -Wpedantic -m32
 
-$(eval $(call make-exe, $(TARGET), $(SOURCES), $(LIBS)))
+$(eval $(call make-exe,$(TARGET),$(SOURCES),$(LINKLIBS),$(CFLAGS),$(LNKFLAGS)))

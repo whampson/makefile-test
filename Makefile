@@ -7,58 +7,61 @@ export MODULES  := \
 	test/kernel \
 	test/mm \
 
-export ROOT     := $(CURDIR)
-export BINROOT  := bin
-export LIBROOT  := lib
-export OBJROOT  := obj
-export SRCROOT  := src
+export BIN_ROOT         := bin
+export OBJROOT          := obj
+export SOURCE_ROOT      := src
 
-export INCLUDES := inc
-export CFLAGS   :=
-export DEFINES  :=
+export DEFAULT_INCLUDES := inc
+export DEFAULT_CFLAGS   :=
+export DEFAULT_DEFINES  :=
 
-export CC       := cc
-export MKDIR    := mkdir -p
-export MV       := mv -f
-export RM       := rm -f
+export CC               := cc
+export MKDIR            := mkdir -p
+export MV               := mv -f
+export RM               := rm -f
 
 # Current module directory.
 # DO NOT call from this Makefile!! Ok to use in define.
-export MODDIR    = $(patsubst %/$(_MODFILE),%,$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST)))
+export MODULE = $(patsubst %/$(_MODFILE),%,$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST)))
 
 # =================================================================================================
 
 _MODFILE    := Module.mk
-_SOURCES    :=
 _OBJECTS    :=
 _BINARIES   :=
 _LIBRARIES  :=
 
-_MODULES     = $(addprefix $(SRCROOT)/,$(MODULES))
-_INCLUDES    = $(addprefix $(SRCROOT)/,$(INCLUDES))
+_MODULES     = $(addprefix $(SOURCE_ROOT)/,$(MODULES))
+_INCLUDES    = $(addprefix $(SOURCE_ROOT)/,$(DEFAULT_INCLUDES))
 _DEPENDS     = $(subst .o,.d,$(_OBJECTS))
 
-# $(call get-obj-name, source-list)
-get-obj-name = $(subst $(SRCROOT)/,$(OBJROOT)/,$(subst .c,.o,$(filter %.c,$1)))
-
-define make-exe	# exe-path, source-list, [link-libs]
-  _BINARIES += $(addprefix $(BINROOT)/,$1)
-  _SOURCES += $(addprefix $(MODDIR)/,$2)
-  $(addprefix $(BINROOT)/,$1): $(call get-obj-name,$(addprefix $(MODDIR)/,$2))
-	$(CC) -o $$@ $$^ $(addprefix $(LIBROOT)/,$3)
+# $(call make-exe, exe-path, source-list, [link-libs], [cflags], [linkflags])
+define make-exe
+  _BINARIES += $(addprefix $(BIN_ROOT)/,$1)
+  $(foreach _src,$(addprefix $(MODULE)/,$2),$(eval $(call make-obj,$(call get-obj-path,$(_src)),$(_src),$4)))
+  $(addprefix $(BIN_ROOT)/,$1): $(call get-obj-path,$(addprefix $(MODULE)/,$2))
+	$(CC) $5 -o $$@ $$^ $(addprefix $(OBJROOT)/,$3)
 endef
 
-define make-lib # lib-name, source-list
-  _LIBRARIES += $(addprefix $(LIBROOT)/,$1)
-  _SOURCES += $(addprefix $(MODDIR)/,$2)
-  $(addprefix $(LIBROOT)/,$1): $(call get-obj-name,$(addprefix $(MODDIR)/,$2))
+# $(call make-lib, lib-name, source-list)
+define make-lib
+  _LIBRARIES += $(addprefix $(OBJROOT)/,$1)
+  $(foreach _src,$(addprefix $(MODULE)/,$2),$(eval $(call make-obj,$(call get-obj-path,$(_src)),$(_src),$4)))
+  $(addprefix $(OBJROOT)/,$1): $(call get-obj-path,$(addprefix $(MODULE)/,$2))
 	$(AR) rcs $$@ $$^
 endef
 
-define make-obj # obj-name, source-list
+
+# $(call get-obj-path, source-list)
+define get-obj-path
+  $(subst $(SOURCE_ROOT)/,$(OBJROOT)/,$(subst .c,.o,$(filter %.c,$1)))
+endef
+
+# $(call make-obj, obj-path, source-list, [cflags])
+define make-obj
   _OBJECTS += $1
   $1: $2
-	$(CC) -o $$@ $(CFLAGS) $(addprefix -D,$(DEFINES)) $(addprefix -I,$(_INCLUDES)) -c -MD -MF $$(@:.o=.d) $$<
+	$(CC) -o $$@ $(DEFAULT_CFLAGS) $(addprefix -D,$(DEFAULT_DEFINES)) $(addprefix -I,$(_INCLUDES)) $3 -c -MD -MF $$(@:.o=.d) $$<
 endef
 
 # uniq - https://stackoverflow.com/a/16151140
@@ -83,33 +86,6 @@ clean:
 	$(RM) $(_BINARIES) $(_LIBRARIES) $(_OBJECTS) $(_DEPENDS)
 
 nuke:
-	$(RM) -r $(BINROOT) $(LIBROOT) $(OBJROOT)
-
-debug-make:
-	@echo 'MODULES       = $(MODULES)'
-	@echo 'INCLUDES      = $(INCLUDES)'
-	@echo 'CFLAGS        = $(CFLAGS)'
-	@echo 'DEFINES       = $(DEFINES)'
-	@echo 'CC            = $(CC)'
-	@echo 'MKDIR         = $(MKDIR)'
-	@echo 'MV            = $(MV)'
-	@echo 'RM            = $(RM)'
-	@echo '--------------------------------------------------------------------------------'
-	@echo 'ROOT          = $(ROOT)'
-	@echo 'BINROOT       = $(BINROOT)'
-	@echo 'LIBROOT       = $(LIBROOT)'
-	@echo 'OBJROOT       = $(OBJROOT)'
-	@echo 'SRCROOT       = $(SRCROOT)'
-	@echo 'MAKEFILE_LIST = $(MAKEFILE_LIST)'
-	@echo '_MODULES      = $(_MODULES)'
-	@echo '_BINARIES     = $(_BINARIES)'
-	@echo '_LIBRARIES    = $(_LIBRARIES)'
-	@echo '_SOURCES      = $(_SOURCES)'
-	@echo '_INCLUDES     = $(_INCLUDES)'
-	@echo '_OBJECTS      = $(_OBJECTS)'
-	@echo '_DEPENDS      = $(_DEPENDS)'
-
-# generate object file rules
-$(foreach _src, $(_SOURCES), $(eval $(call make-obj, $(call get-obj-name, $(_src)), $(_src))))
+	$(RM) -r $(BIN_ROOT) $(OBJROOT) $(OBJROOT)
 
 -include $(_DEPENDS)
